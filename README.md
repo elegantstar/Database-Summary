@@ -35,7 +35,7 @@ Primary Index가 순차 파일에 정의되지 않는 한 순차 파일은 거�
 
 <hr>
 
-## 데이터베이스에서 Index
+## 데이터베이스에서의 Index
 
 `Index`는 의미 그대로 서적의 가장 뒤쪽에 수록되어 특정 주제가 실린 페이지를 쉽게 찾도록 도와주는 색인과 같은 기능을 한다. 따라서 데이터베이스에서의 Index는 어떤 일정한 순서에 따라 데이터가 저장되어 있는 주소를 기록하고 있는 색인으로, 각 레코드는 서적의 특정 내용, 레코드가 저장된 주소값은 해당 주제가 실린 페이지로 비유할 수 있다.  
 DBMS가 데이터베이스 릴레이션 내의 모든 데이터를 탐색하는 것은 많은 시간이 소요되지만, **<탐색 키, 레코드에 대한 포인터>로써 key-value 형식의 index를 활용한다면 특정 레코드들을 빠르게 찾을 수 있다**. 따라서 **index는 임의 접근이 필요한 경우에 효율적**이다. 여기서 탐색 키는 index가 정의된 field를 말한다.
@@ -57,3 +57,38 @@ DBMS가 데이터베이스 릴레이션 내의 모든 데이터를 탐색하는 
 <br>
 
 ## Primary Index vs Secondary Index
+
+### Primary Index
+
+**`Primary Index(기본 인덱스)`는 `Search key`가 데이터 파일의 `Primary key`인 index**이다. 레코드들은 Primary key의 값에 따라 Clustering 된다. 여기서 Clustering이란 단어 뜻 그대로 관련있는 것들을 모아둔다는 의미로, 레코드들을 Primary key의 value에 따라 묶어서 저장한다는 것이다. 이는 주로 관련 있는 유사한 데이터들을 함께 조회하는 경우가 많다는 점에서 착안된 것인데, 이런 유사한 데이터들은 디스크상에 물리적으로 인접한 곳에 저장된다. 즉, Primary index는 Primary key에 따라 정렬된 데이터 파일에 대해 정의되며, `MySQL`에서는 Primary Index를 갖는 데이터 파일은 Primary key 값이 증가하는 순서로 정렬되어 저장된다.  
+**Primary index는 `Sparse index(희소 인덱스)`로 유지할 수 있는데, Sparse index는 일부 key 값에 대해서만 index에 entry를 유지하는 index를 말한다.** 일반적으로 각 블록마다 한 개의 Search key 값이 인덱스 엔트리에 포함되며, 각 인덱스 엔트리는 블록 내 첫 번째 레코드의 key 값(`Block Anchor`)을 갖는다. 이런 구조로 인해 데이터 블록당 레코드 수와 인덱스 블록 당 엔트리 수를 비교한다면, 인덱스 블록 당 엔트리 수가 훨씬 많게 된다.
+
+### Clustering Index
+
+**`Clustering Index`는 Search key 값에 따라 정렬된 데이터 파일에 대해 정의되며, index의 순서와 디스크 상의 파일의 저장 순서가 동일할 때 이를 Clustering index라고 표현한다.** 즉, Clustering index는 Primary key에 대해서만 적용된다. **Clustering index는 파일의 저장 순서와 index 순서가 동일하기 때문에 `Range Query(범위 질의)`에 효과적**이다. Clustering index에서는 인접한 Search key 값을 갖는 레코드들이 디스크에서 가깝게 저장되어 있으므로, 범위의 시작 값에 해당하는 index를 먼저 찾고 범위에 속하는 인덱스 엔트리들을 따라가면서 레코드를 검색할 수 있다. 이런 특성 덕분에 Range Query를 할 때 디스크에서 읽어오는 블록 수가 최소화된다.  
+그러나 Clustering Index는 Primary key에 대해서 적용되는 것이기에 한 Relation(Table) 당 한 개만 생성할 수 있으며, Primary key에 수정이 발생하는 경우 레코드의 물리적 저장 위치 또한 함께 변경되어야 하는 리스크가 동반된다. 이러한 이유 때문에 Primary key를 선정할 때에는 신중하게 선정해야 한다.
+
+### Secondary Index
+
+**`Secondary Index(보조 인덱스)`는 Search key 값에 따라 정렬되지 않은 데이터 파일에 대해 정의되는 index**이다. 하나의 파일을 정렬하는데 두 개의 attribute에 대해 동시에 정렬하는 것은 불가능하기 때문에, **Primary key가 아닌 attribute에 대해 정의된 index가 Secondary index**가 된다. Secondary index도 역시 Primary index처럼 레코드를 빠르게 검색할 수 있도록 하는 기능이다. 다만, Secondary index는 `Dense index(밀집 인덱스)`이기 떄문에 같은 수의 레코드들을 접근할 때 Primary index를 이용하는 경우보다 디스크 접근 횟수가 증가할 수 있고, 순차 접근을 할 경우에 비효율적이다. 여기서 **Dense index는 각 레코드마다 한 개의 인덱스 엔트리를 갖는 인덱스**를 말한다.  
+Secondary index는 Primary index처럼 자주 사용되지는 않으나 레코드 검색에 용이한 attribute에 만들어 사용함으로써, index를 사용하지 않는 경우와 비교했을 때 검색 성능을 대폭 향상시킬 수 있다. 예를 들어, 어떤 신용카드 회사에서 주로 신용카드번호를 사용하여 고객 레코드를 검색한다면 신용카드번호에 대해 Primary index를 생성한다. 그러나 신용카드번호를 기억하지 못하거나 분실하여 확인이 어려운 경우에는 주민등록번호를 사용하여 고객 레코드를 빠르게 찾을 수 있어야 한다. 이때 주민등록번호에 Secondary index가 존재하지 않는다면 조회하는 데에만 수십 분이 걸릴 수 있기에 실무에서 사용할 수가 없게 된다.
+
+<br>
+
+## Sparse Index vs Dense Index
+
+**`Sparse Index`는 인덱스 엔트리의 포인터가 파일의 레코드를 직접 가리키는 것이 아니라, 해당 레코드가 포함된 블록 내 첫 번째 레코드를 가리키는 인덱스**이다. 즉, 각 데이터 블록마다 한 개의 엔트리를 갖는다. Sparse index의 장점은 레코드의 개수보다 인덱스의 크기가 작기 때문에 인덱스를 메모리에 올리는 시간과 디스크 접근 횟수를 줄일 수 있다는 것이다. Sparse index는 다단계 인덱스에서 2단계 이상의 인덱스에서는 필수이며, 단일 단계에서는 선택사항이다. 대부분의 경우에는 1단계에서도 Sparse index를 사용하는 편이 좋다.
+
+**`Dense Index`는 인덱스 엔트리의 포인터가 파일의 레코드를 직접 가리키는 인덱스**이다. 즉, 각 레코드마다 한 개의 엔트리를 갖기 때문에 인덱스 엔트리 수와 파일의 레코드 수가 동일하다. 일반적으로 Sparse index를 사용하면 대부분의 갱신과 쿼리에 대해 더 효율적이지만, Dense index만이 갖는 장점도 있다. 예를 드어, Query에서 index가 정의된 attribute만 검색하는 경우(데이터의 개수를 세는 `COUNT`, 데이터 존재 유무를 확인하는 `Exist` 등)에는 데이터 파일에 접근할 필요 없이 인덱스만 접근하여 Query를 수행할 수 있으므로 Dense index가 Sparse index보다 더 효율적이다.
+
+## Clustering Index vs Secondary Index
+
+Clustering Index는 Sparse Index일 경우가 많으며 Range Quary 등에 효율적이다. Clustering index가 불리한 경우는 Relation의 중간에 Tuple이 삽입되어 Overflow를 야기하고, 이로 인해 Clustering의 장점을 잃게 되는 경우이다. Clustering index를 정의할 때는 Fill Factor에 낮은 값을 지정하여 추가로 삽입되는 레코드들에 대비하는 것이 바람직하다. Secondary index는 Dense index이므로 일부 Quary에 대해서는 파일에 접근할 필요 없이 처리할 수 있다.
+
+## 다단계 인덱스
+
+**다단계 인덱스는 인덱스에 인덱스를 생성한 것을 의미**한다. 단일 단계 인덱스 자체를 인덱스가 정의된 필드의 값에 따라 정렬된 파일로 보고, 그에 따라 인덱스를 생성하는 것이다. 인덱스 자체의 크기가 클 경우에는 인덱스를 탐색하는 시간도 오래 걸릴 수 있기 때문에, 인덱스 엔트리 탐색 시간을 줄이기 위한 방안으로 다단계 인덱스를 도입하였다. 위에서 언급했듯 1단계 인덱스는 Sparse index 또는 Dense index 모두 가능하지만, 2단계 이상의 인덱스는 Sparse index만 가능하다.  
+이러한 **다단계 인덱스는 가장 상위 단계의 모든 인덱스 엔트리들이 한 블록에 들어갈 수 있을 때까지 반복**하여 만든다. 이렇게 만들어진 다단계 인덱스의 가장 상위 단계 인덱스는 `Master Index`라고 부른다. Master Index는 한 블록으로 이루어지기 때문에 주기억 장치에 상주할 수 있다는 장점이 있다.  
+대부분의 다단계 인덱스는 `B+-Tree`로 구현되어 있다. B+-Tree의 `Inner Node`는 다수의 `Child Node`를 갖고 각 Node는 한 개의 디스크 블록을 차지하는데, 일반적으로 한 블록에 자식 노드들에 대한 포인터를 수백 개 저장할 수 있다. B+-Tree는 새롭게 추가될 인덱스 엔트리에 대응하기 위해 각 인덱스 블록에 예비 공간을 남겨 둔다. 다단계 인덱스는 각 단계의 인덱스가 오름차순으로 유지되어야 하기 때문에 인덱스 엔트리에 갱신이 발생할 경우 단일 단계 인덱스의 경우보다 복잡한 처리 과정을 거쳐야 한다. 그럼에도 불구하고 **대부분의 데이터베이스에서는 검색 비율이 갱신 비율보다 월등히 높기 때문에 모든 DBMS에서는 인덱스를 다단계 인덱스로 유지한다.**
+
+## Composite Index
