@@ -114,13 +114,25 @@ _기대와는 달리, index를 과도하게 생성한다면 과유불급이라�
 index 생성이 수반하는 문제는 다음과 같다.
 
 **첫째, cost의 증가가 필연적이다.**  
-index는 검색 속도를 향상시키지만 index를 저장하기 위한 공간이 추가로 필요하며, INSERT, DELETE, UPDATE 연산 시 별도의 과정이 동반되기에 연산 속도를 저하시킨다. `INSERT Query`에서는 INDEX에 대한 데이터를 추가해야 하므로 그만큼의 성능 손실이 발생하며, `DELETE Query`의 경우 인덱스 엔트리를 삭제하지 않고 '사용하지 않음'을 표시하게 된다. 즉, INDEX record 수는 삭제 연산 후에도 그대로 유지된다. 이러한 작업이 반복되다 보면, 삭제되지 않은 index record들 때문에 실제 데이터 수에 비해 인덱스 엔트리 수가 더 많아지기 때문에 index가 제 기능을 할 수 없게 될 수도 있다. `UPDATE`의 경우에는 INSERT와 DELETE 연산의 문제를 모두 수반한다.
+index는 검색 속도를 향상시키지만 **index를 저장하기 위한 공간이 추가로 필요**하며, **INSERT, DELETE, UPDATE 연산 시 별도의 과정이 동반되기에 연산 속도를 저하**시킨다. `INSERT Query`에서는 INDEX에 대한 데이터를 추가해야 하므로 그만큼의 성능 손실이 발생하며, `DELETE Query`의 경우 인덱스 엔트리를 삭제하지 않고 '사용하지 않음'을 표시하게 된다. 즉, INDEX record 수는 삭제 연산 후에도 그대로 유지된다. 이러한 작업이 반복되다 보면, 삭제되지 않은 index record들 때문에 실제 데이터 수에 비해 인덱스 엔트리 수가 더 많아지기 때문에 index가 제 기능을 할 수 없게 될 수도 있다. `UPDATE`의 경우에는 INSERT와 DELETE 연산의 문제를 모두 수반한다.
 
 **둘째, attribute를 이루는 데이터의 형식에 따라 index의 성능이 크게 좌우된다.**  
-이 점은 더욱 중요하다. cost 문제를 크게 야기하지 않는 경우라도 index가 제 기능을 할 수 없는 경우가 있기 때문이다. 즉, index 사용이 효율적/비효율적인 데이터의 형식이 존재한다. index는 결국 탐색 범위를 좁혀 탐색 속도를 향상하는 것이 목적이므로, index를 사용하여 탐색의 범위를 효과적으로 좁힐 수 있는 attribute에 대해 index를 생성해야 한다.
+이 점은 더욱 중요하다. cost 문제를 크게 야기하지 않는 경우라도 index가 제 기능을 할 수 없는 경우가 있기 때문이다. index 사용이 효율적/비효율적인 데이터의 형식이 존재한다는 것이다. index는 결국 탐색 범위를 좁혀 탐색 속도를 향상하는 것이 목적이므로, **index를 사용하여 탐색의 범위를 효과적으로 좁힐 수 있는 attribute에 대해 index를 생성해야 한다. 즉, index는 파일의 record를 충분히 분해할 수 있어야 한다.**
 
 > name, age, gender 세 가지 필드를 갖는 테이블에서 인덱스를 생성한다고 가정해 보자. name의 경우에는 셀 수 없을 정도로 많은 경우의 수가 존재하고, age는 INT 타입으로 정의될 것이며, gender의 경우 일반적으로 male, female 두 가지 경우만 존재할 것이다. 이런 상황에서는 name에 대한 index만 정의하는 것이 효율적이다.  
-> age 또는 gender에 대한 index를 생성하는 것은 왜 비효율적일까? index 사용 시 탐색의 범위를 크게 좁힐 수 없기 때문이다. gender attribute에 대한 index를 이용하여 조회하는 상황을 생각해 보자. 이 경우, index를 사용한다고 해도 줄일 수 있는 값의 range는 50%이다. 만약 Cardinality가 10000인 테이블에 대해 2000개 단위로 gender index 블록을 생성하는 상황이라면, 일반적인 경우 한 번에 인덱스를 읽어 오지 못 해 추가적인 디스크 I/O가 발생할 수 밖에 없을 것이다.  
-> age의 경우에도 실질적으로 존재할 수 있는 경우의 수는 100도 채 되지 않으며, 특정 연령대를 타겟팅하는 서비스의 경우 그 경우의 수는 더욱 줄어들 것이다. 따라서 field range가 좁은 attribute에 대해서는 index를 생성하지 않는 편이 더 효율적이다.
+> age 또는 gender에 대한 index를 생성하는 것은 왜 비효율적일까? index 사용 시 탐색의 범위를 크게 좁힐 수 없기 때문이다. gender attribute에 대한 index를 이용하여 조회하는 상황을 생각해 보자. 이 경우, index를 사용한다고 해도 줄일 수 있는 값의 range는 50%이다. 만약 row의 수가 10000인 테이블에 대해 2000개 단위로 gender index 블록을 생성하는 상황이라면, 일반적인 경우 한 번에 인덱스를 읽어 오지 못 해 추가적인 디스크 I/O가 발생할 수 밖에 없을 것이다. age의 경우에도 실질적으로 존재할 수 있는 경우의 수는 100도 채 되지 않으며, 특정 연령대를 타겟팅하는 서비스의 경우 그 경우의 수는 더욱 줄어들 것이다.
+> 따라서 이와 같은 attribute에 대해 index를 생성해야 하는 경우에는, **field의 cardinality가 높은 것부터 낮은 순으로 composite index를 생성하는 것이 효율적**이다.
 
 ### Index 선정 지침
+
+1. primary key는 Index를 정의할 좋은 후보가 되기 때문에 대부분의 DBMS는 primary key로 명시한 attribute에 대해 자동적으로 index를 생성한다.
+2. foreign key 역시 index 정의에 중요한 후보이기에, 어떤 DBMS에서는 foreign key로 지정한 attribute에 대해 자동적으로 index를 생성하기도 한다.
+3. 한 attribute에 들어 있는 상이한 값들의 개수가 전체 record 수와 비슷하고(high cardinality), 그 attribute가 동등 조건에 사용된다면 index를 생성하는 것이 좋다.
+4. 갱신이 빈번한 attribute에는 index를 정의하지 않는 것이 좋으며, 갱신이 빈번한 relation에 많은 index는 피해야 한다.
+5. 대량의 데이터를 삽입할 때는 모든 index를 제거하고, 데이터 삽입이 끝난 후에 index를 다시 생성하는 것이 좋다.
+6. 정렬 속도 향상을 위해서 ORDER BY절에 자주 사용되는 attribute에는 index를 생성하는 것이 좋고, 그룹화 속도 향상을 위해서 GROUP BY절에 자주 사용되는 attribute도 index를 생성하는 것이 좋다.
+
+### Query Tunning을 위한 추가 지침
+
+1. `DISTINCT`절 사용을 최소화한다.
+2. `GROUP BY`절, `HAVING`절 사용을 최소화한다.
