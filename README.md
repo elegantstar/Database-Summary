@@ -137,6 +137,7 @@ index는 검색 속도를 향상시키지만 **index를 저장하기 위한 공�
 1. `DISTINCT`절 사용을 최소화한다.
 2. `GROUP BY`절, `HAVING`절 사용을 최소화한다.
 
+<br>
 <hr>
 
 # Normalization(정규화)
@@ -147,17 +148,17 @@ index는 검색 속도를 향상시키지만 **index를 저장하기 위한 공�
 
 Anomaly 상황에 대한 예시 스키마: {brand_id, product_id, category}
 
-**1. Insertion Anomaly(삽입 이상)**
+### 1. Insertion Anomaly(삽입 이상)
 
 예시 테이블의 Primary key는 {brand_id, product_id}이다. 만약 신규 입점한 브랜드가 상품 등록을 하기 전이라면 어떤 product_id도 가질 수 없다. 그러나 Primary key에는 NULL을 삽입할 수 없으므로, 이 테이블에는 등록한 상품이 없는 브랜드에 대한 정보는 삽입할 수가 없다.  
 이렇듯 **불필요한 정보를 함께 저장하지 않고는 어떤 정보를 저장하는 것이 불가능한 이상 현상을 삽입 이상(Insertion Anomaly)이라고 한다.**
 
-**2. Deletion Anomaly(삭제 이상)**
+### 2. Deletion Anomaly(삭제 이상)
 
 어떤 브랜드가 품목 리뉴얼을 위해 판매 중인 상품을 모두 내리는 경우, 브랜드의 정보(브랜드 번호, 브랜드 카테고리)까지 전부 삭제되는 문제가 발생한다.  
 이렇듯 **유용한 정보를 함께 삭제하지 않고는 어떤 정보를 삭제하는 것이 불가능한 이상 현상을 삭제 이상(Deletion Anomaly)이라고 한다.**
 
-**3. Modification Anomaly(수정 이상)**
+### 3. Modification Anomaly(수정 이상)
 
 만약 어떤 브랜드의 카테고리가 변경되는 경우, 해당 브랜드의 모든 category를 전부 변경해야만 한다. 만약 이 과정에서 변경 누락이 발생하여 기존 category를 유지하는 tuple이 생긴다면 데이터의 불일치가 발생한다.  
 이렇듯 **반복된 데이터 중에 일부만 수정하여 데이터 불일치가 발생하는 이상 현상을 수정 이상 또는 갱신 이상(Modification Anomaly)이라고 한다.**
