@@ -70,7 +70,7 @@ DBMS가 데이터베이스 릴레이션 내의 모든 데이터를 탐색하는 
 
 ### Secondary Index
 
-**`Secondary Index(보조 인덱스)`는 Search key 값에 따라 정렬되지 않은 데이터 파일에 대해 정의되는 index**이다. 하나의 파일을 정렬하는데 두 개의 attribute에 대해 동시에 정렬하는 것은 불가능하기 때문에, **Primary key가 아닌 attribute에 대해 정의된 index가 Secondary index**가 된다. Secondary index도 역시 Primary index처럼 레코드를 빠르게 검색할 수 있도록 하는 기능이다. 다만, Secondary index는 `Dense index(밀집 인덱스)`이기 떄문에 같은 수의 레코드들을 접근할 때 Primary index를 이용하는 경우보다 디스크 접근 횟수가 증가할 수 있고, 순차 접근을 할 경우에 비효율적이다. 여기서 **Dense index는 각 레코드마다 한 개의 인덱스 엔트리를 갖는 인덱스**를 말한다.  
+**`Secondary Index(보조 인덱스)`는 Search key 값에 따라 정렬되지 않은 데이터 파일에 대해 정의되는 index**이다. 하나의 파일을 정렬하는데 두 개의 attribute에 대해 동시에 정렬하는 것은 불가능하기 때문에, **Primary key가 아닌 attribute에 대해 정의된 index가 Secondary index**가 된다. Secondary index도 역시 Primary index처럼 레코드를 빠르게 검색할 수 있도록 하는 기능이다. 다만, Secondary index는 `Dense index(밀집 인덱스)`이기 때문에 같은 수의 레코드들을 접근할 때 Primary index를 이용하는 경우보다 디스크 접근 횟수가 증가할 수 있고, 순차 접근을 할 경우에 비효율적이다. 여기서 **Dense index는 각 레코드마다 한 개의 인덱스 엔트리를 갖는 인덱스**를 말한다.  
 Secondary index는 Primary index처럼 자주 사용되지는 않으나 레코드 검색에 용이한 attribute에 만들어 사용함으로써, index를 사용하지 않는 경우와 비교했을 때 검색 성능을 대폭 향상시킬 수 있다. 예를 들어, 어떤 신용카드 회사에서 주로 신용카드번호를 사용하여 고객 레코드를 검색한다면 신용카드번호에 대해 Primary index를 생성한다. 그러나 신용카드번호를 기억하지 못하거나 분실하여 확인이 어려운 경우에는 주민등록번호를 사용하여 고객 레코드를 빠르게 찾을 수 있어야 한다. 이때 주민등록번호에 Secondary index가 존재하지 않는다면 조회하는 데에만 수십 분이 걸릴 수 있기에 실무에서 사용할 수가 없게 된다.
 
 <br>
@@ -79,20 +79,48 @@ Secondary index는 Primary index처럼 자주 사용되지는 않으나 레코�
 
 **`Sparse Index`는 인덱스 엔트리의 포인터가 파일의 레코드를 직접 가리키는 것이 아니라, 해당 레코드가 포함된 블록 내 첫 번째 레코드를 가리키는 인덱스**이다. 즉, 각 데이터 블록마다 한 개의 엔트리를 갖는다. Sparse index의 장점은 레코드의 개수보다 인덱스의 크기가 작기 때문에 인덱스를 메모리에 올리는 시간과 디스크 접근 횟수를 줄일 수 있다는 것이다. Sparse index는 다단계 인덱스에서 2단계 이상의 인덱스에서는 필수이며, 단일 단계에서는 선택사항이다. 대부분의 경우에는 1단계에서도 Sparse index를 사용하는 편이 좋다.
 
-**`Dense Index`는 인덱스 엔트리의 포인터가 파일의 레코드를 직접 가리키는 인덱스**이다. 즉, 각 레코드마다 한 개의 엔트리를 갖기 때문에 인덱스 엔트리 수와 파일의 레코드 수가 동일하다. 일반적으로 Sparse index를 사용하면 대부분의 갱신과 쿼리에 대해 더 효율적이지만, Dense index만이 갖는 장점도 있다. 예를 드어, Query에서 index가 정의된 attribute만 검색하는 경우(데이터의 개수를 세는 `COUNT`, 데이터 존재 유무를 확인하는 `Exist` 등)에는 데이터 파일에 접근할 필요 없이 인덱스만 접근하여 Query를 수행할 수 있으므로 Dense index가 Sparse index보다 더 효율적이다.
+**`Dense Index`는 인덱스 엔트리의 포인터가 파일의 레코드를 직접 가리키는 인덱스**이다. 즉, 각 레코드마다 한 개의 엔트리를 갖기 때문에 인덱스 엔트리 수와 파일의 레코드 수가 동일하다. 일반적으로 Sparse index를 사용하면 대부분의 갱신과 쿼리에 대해 더 효율적이지만, Dense index만이 갖는 장점도 있다. 예를 드어, Query에서 index가 정의된 attribute만 검색하는 경우(데이터의 개수를 세는 `COUNT`, 데이터 존재 유무를 확인하는 `EXIST` 등)에는 데이터 파일에 접근할 필요 없이 인덱스만 접근하여 Query를 수행할 수 있으므로 Dense index가 Sparse index보다 더 효율적이다.
 
 ## Clustering Index vs Secondary Index
 
-Clustering Index는 Sparse Index일 경우가 많으며 Range Quary 등에 효율적이다. Clustering index가 불리한 경우는 Relation의 중간에 Tuple이 삽입되어 Overflow를 야기하고, 이로 인해 Clustering의 장점을 잃게 되는 경우이다. Clustering index를 정의할 때는 Fill Factor에 낮은 값을 지정하여 추가로 삽입되는 레코드들에 대비하는 것이 바람직하다. Secondary index는 Dense index이므로 일부 Quary에 대해서는 파일에 접근할 필요 없이 처리할 수 있다.
+Clustering Index는 Sparse Index일 경우가 많으며 Range Query 등에 효율적이다. Clustering index가 불리한 경우는 Relation의 중간에 Tuple이 삽입되어 Overflow를 야기하고, 이로 인해 Clustering의 장점을 잃게 되는 경우이다. Clustering index를 정의할 때는 Fill Factor에 낮은 값을 지정하여 추가로 삽입되는 레코드들에 대비하는 것이 바람직하다. Secondary index는 Dense index이므로 일부 Query에 대해서는 파일에 접근할 필요 없이 처리할 수 있다.
 
 ## 다단계 인덱스
 
-**`다단계 인덱스`는 인덱스에 인덱스를 생성한 것을 의미**한다. 단일 단계 인덱스 자체를 인덱스가 정의된 필드의 값에 따라 정렬된 파일로 보고, 그에 따라 인덱스를 생성하는 것이다. 인덱스 자체의 크기가 클 경우에는 인덱스를 탐색하는 시간도 오래 걸릴 수 있기 때문에, 인덱스 엔트리 탐색 시간을 줄이기 위한 방안으로 다단계 인덱스를 도입하였다. 위에서 언급했듯 1단계 인덱스는 Sparse index 또는 Dense index 모두 가능하지만, 2단계 이상의 인덱스는 Sparse index만 가능하다.  
+**`다단계 인덱스`는 인덱스에 인덱스를 생성한 것을 의미**한다. 단일 단계 인덱스 자체를 인덱스가 정의된 필드의 값에 따라 정렬된 파일로 보고, 그에 따라 인덱스를 생성하는 것이다. 인덱스 자체의 크기가 클 경우에는 인덱스를 탐색하는 시간도 오래 걸릴 수 있기 때문에, 인덱스 엔트리 탐색 시간을 줄이기 위한 방안으로 다단계 인덱스를 도입하였다. 위에서 언급했듯 1단계 인덱스는 Sparse index 또는 Dense index 모두 가능하지만, 2단계 이상의 인덱스는 Sparse index만 가능하다.
+
 이러한 **다단계 인덱스는 가장 상위 단계의 모든 인덱스 엔트리들이 한 블록에 들어갈 수 있을 때까지 반복**하여 만든다. 이렇게 만들어진 다단계 인덱스의 가장 상위 단계 인덱스는 `Master Index`라고 부른다. Master Index는 한 블록으로 이루어지기 때문에 주기억 장치에 상주할 수 있다는 장점이 있다.  
 대부분의 다단계 인덱스는 `B+-Tree`로 구현되어 있다. B+-Tree의 `Inner Node`는 다수의 `Child Node`를 갖고 각 Node는 한 개의 디스크 블록을 차지하는데, 일반적으로 한 블록에 자식 노드들에 대한 포인터를 수백 개 저장할 수 있다. B+-Tree는 새롭게 추가될 인덱스 엔트리에 대응하기 위해 각 인덱스 블록에 예비 공간을 남겨 둔다. 다단계 인덱스는 각 단계의 인덱스가 오름차순으로 유지되어야 하기 때문에 인덱스 엔트리에 갱신이 발생할 경우 단일 단계 인덱스의 경우보다 복잡한 처리 과정을 거쳐야 한다. 그럼에도 불구하고 **대부분의 데이터베이스에서는 검색 비율이 갱신 비율보다 월등히 높기 때문에 모든 DBMS에서는 인덱스를 다단계 인덱스로 유지한다.**
 
 ## Composite Index
 
-**한 릴레이션에 속하는 두 개 이상의 attribute들의 조합(`Composite Attribute`)에 대해 하나의 인덱스를 정의할 수 있는데, 이러한 인덱스를 `Composite Index(복합 인덱스)`라고 한다.** Composite index를 정의할 때 attribute의 수는 3개 이하를 사용하는 편이 좋다. 인덱스가 정의된 composite attribute에 포함된 attribute의 수가 늘어날수록 이 인덱스를 활용하는 탐색 조건이 복잡해지고, 인덱스 엔트리의 길이가 늘어나기 때문에 탐색 성능이 저하되기 때문이다.  
-**복합 인덱스를 정의할 때는 attribute의 순서가 중요**하다. 정의된 순서에 따라서 attribute의 필드가 정렬 되기 때문이다. 만약 product라는 릴레이션의 (brand, price) attribute에 대해 복합 인덱스를 생성한다고 가정해 보자. 그러면 brand 이름 순으로 먼저 정렬이 되고, 각 brand 마다 가격 별로 상품들이 정렬이 된다. 따라서 brand를 기준으로 search하거나 brand와 price의 값을 모두 이용하여 search하는 경우는 composite index의 효과를 볼 수가 있다. 그러나 두 번째 attribute인 price만을 이용하여 search 하는 경우에는 index의 효과를 볼 수가 없게 된다. 전체 상품이 price를 기준으로 정렬되어 있는 것이 아니기 때문이다. 단, WHERE절의 첫 번째 조건으로 첫 번째 attribute에 대해서 LIKE, 부등호, IN을 사용하는 경우에, 두 번째 조건에서는 index 활용을 하지 못 할 수도 있다. 예를 들어, brand에 대해 Range Search를 하게 되면 price에 대해서는 정렬되지 않기 때문에 index 활용을 하지 못 하는 것이다.  
-이러한 이유로 실무에서 SELECT Quary 사용 방식에 따라 index 설계에 지대한 영향을 미친다. 따라서 단순히 이론적으로 index를 어떻게 생성하는지 아는 것에 그치지 않고, 실제 서비스 상에서 어떤 quary를 자주 사용하고 어떤 방식으로 활용될 것인지를 파악하여 index 설계에 반영하는 것이 매우 중요하다.
+**한 릴레이션에 속하는 두 개 이상의 attribute들의 조합(`Composite Attribute`)에 대해 하나의 인덱스를 정의할 수 있는데, 이러한 인덱스를 `Composite Index(복합 인덱스)`라고 한다.** Composite index를 정의할 때 attribute의 수는 3개 이하를 사용하는 편이 좋다. 인덱스가 정의된 composite attribute에 포함된 attribute의 수가 늘어날수록 이 인덱스를 활용하는 탐색 조건이 복잡해지고, 인덱스 엔트리의 길이가 늘어나기 때문에 탐색 성능이 저하되기 때문이다.
+
+**복합 인덱스를 정의할 때는 attribute의 순서가 중요**하다. 정의된 순서에 따라서 attribute의 필드가 정렬 되기 때문이다.
+
+> 만약 product라는 릴레이션의 (brand, price) attribute에 대해 복합 인덱스를 생성한다고 가정해 보자. 그러면 brand 이름 순으로 먼저 정렬이 되고, 각 brand 마다 가격 별로 상품들이 정렬이 된다. 따라서 brand를 기준으로 search하거나 brand와 price의 값을 모두 이용하여 search하는 경우는 composite index의 효과를 볼 수가 있다. 그러나 두 번째 attribute인 price만을 이용하여 search 하는 경우에는 index의 효과를 볼 수가 없게 된다. 전체 상품이 price를 기준으로 정렬되어 있는 것이 아니기 때문이다. 단, WHERE절의 첫 번째 조건으로 첫 번째 attribute에 대해서 LIKE, 부등호, IN을 사용하는 경우에, 두 번째 조건에서는 index 활용을 하지 못 할 수도 있다. 예를 들어, brand에 대해 Range Search를 하게 되면 price에 대해서는 정렬되지 않기 때문에 index 활용을 하지 못 하는 것이다.
+
+이러한 이유로 실무에서 SELECT Query 사용 방식에 따라 index 설계에 지대한 영향을 미친다. 따라서 단순히 이론적으로 index를 어떻게 생성하는지 아는 것에 그치지 않고, 실제 서비스 상에서 어떤 query를 자주 사용하고 어떤 방식으로 활용될 것인지를 파악하여 index 설계에 반영하는 것이 매우 중요하다.
+
+<br>
+
+## Index 선정 및 데이터베이스 튜닝
+
+### Index 성능 및 고려 사항
+
+INDEX는 SELECT query의 성능을 월등히 향상시키는 중요한 요소이다. 그렇다면 검색 성능 향상을 위해 모든 attribute에 index를 생성한다면 어떻게 될까?  
+_기대와는 달리, index를 과도하게 생성한다면 과유불급이라는 말처럼 외려 성능에 좋지 않은 영향을 주게 된다._
+
+index 생성이 수반하는 문제는 다음과 같다.
+
+**첫째, cost의 증가가 필연적이다.**  
+index는 검색 속도를 향상시키지만 index를 저장하기 위한 공간이 추가로 필요하며, INSERT, DELETE, UPDATE 연산 시 별도의 과정이 동반되기에 연산 속도를 저하시킨다. `INSERT Query`에서는 INDEX에 대한 데이터를 추가해야 하므로 그만큼의 성능 손실이 발생하며, `DELETE Query`의 경우 인덱스 엔트리를 삭제하지 않고 '사용하지 않음'을 표시하게 된다. 즉, INDEX record 수는 삭제 연산 후에도 그대로 유지된다. 이러한 작업이 반복되다 보면, 삭제되지 않은 index record들 때문에 실제 데이터 수에 비해 인덱스 엔트리 수가 더 많아지기 때문에 index가 제 기능을 할 수 없게 될 수도 있다. `UPDATE`의 경우에는 INSERT와 DELETE 연산의 문제를 모두 수반한다.
+
+**둘째, attribute를 이루는 데이터의 형식에 따라 index의 성능이 크게 좌우된다.**  
+이 점은 더욱 중요하다. cost 문제를 크게 야기하지 않는 경우라도 index가 제 기능을 할 수 없는 경우가 있기 때문이다. 즉, index 사용이 효율적/비효율적인 데이터의 형식이 존재한다. index는 결국 탐색 범위를 좁혀 탐색 속도를 향상하는 것이 목적이므로, index를 사용하여 탐색의 범위를 효과적으로 좁힐 수 있는 attribute에 대해 index를 생성해야 한다.
+
+> name, age, gender 세 가지 필드를 갖는 테이블에서 인덱스를 생성한다고 가정해 보자. name의 경우에는 셀 수 없을 정도로 많은 경우의 수가 존재하고, age는 INT 타입으로 정의될 것이며, gender의 경우 일반적으로 male, female 두 가지 경우만 존재할 것이다. 이런 상황에서는 name에 대한 index만 정의하는 것이 효율적이다.  
+> age 또는 gender에 대한 index를 생성하는 것은 왜 비효율적일까? index 사용 시 탐색의 범위를 크게 좁힐 수 없기 때문이다. gender attribute에 대한 index를 이용하여 조회하는 상황을 생각해 보자. 이 경우, index를 사용한다고 해도 줄일 수 있는 값의 range는 50%이다. 만약 Cardinality가 10000인 테이블에 대해 2000개 단위로 gender index 블록을 생성하는 상황이라면, 일반적인 경우 한 번에 인덱스를 읽어 오지 못 해 추가적인 디스크 I/O가 발생할 수 밖에 없을 것이다.  
+> age의 경우에도 실질적으로 존재할 수 있는 경우의 수는 100도 채 되지 않으며, 특정 연령대를 타겟팅하는 서비스의 경우 그 경우의 수는 더욱 줄어들 것이다. 따라서 field range가 좁은 attribute에 대해서는 index를 생성하지 않는 편이 더 효율적이다.
+
+### Index 선정 지침
