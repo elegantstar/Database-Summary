@@ -162,3 +162,63 @@ Anomaly 상황에 대한 예시 스키마: {brand_id, product_id, category}
 
 만약 어떤 브랜드의 카테고리가 변경되는 경우, 해당 브랜드의 모든 category를 전부 변경해야만 한다. 만약 이 과정에서 변경 누락이 발생하여 기존 category를 유지하는 tuple이 생긴다면 데이터의 불일치가 발생한다.  
 이렇듯 **반복된 데이터 중에 일부만 수정하여 데이터 불일치가 발생하는 이상 현상을 수정 이상 또는 갱신 이상(Modification Anomaly)이라고 한다.**
+
+<br>
+
+## Functional Dependency(함수적 종속성)
+
+`Functional Dependency(FD, 함수적 종속성)`은 관계형 데이터 모델에서 가장 중요한 제약 조건 중 하나로, 정규화 이론의 핵심이다. 함수적 종속성은 attribute들의 의미로부터 결정되며, 릴레이션의 특정 인스턴스가 아닌 릴레이션 스키마에 대한 제약 조건이다. 따라서 함수적 종속성 제약 조건은 릴레이션의 모든 인스턴스들이 만족해야 한다.
+
+### Determinant(결정자)
+
+**`Determinant(결정자)`는 주어진 릴레이션에서 다른 attribute(또는 attribute set)를 고유하게 결정하는 하나 이상의 attribute를 의미**한다. 예를 들어, {brand_id, brand_name, phone, product_id, product_name} 스키마가 있을 때, brand_id는 brand_name, phone의 determinant이다. 또한, product_id는 product_name의 determinant이다. 결정자는 [ A → B ] 와 같이 표기하고, "A가 B를 결정한다(또는 A는 B의 결정자이다)"라고 표현한다.  
+릴레이션 R에서 attribute A가 B의 결정자이면 임의의 두 tuple에서 A의 값이 같으면 B의 값도 같아야 한다. A와 B는 composite attribute일 수 있다.
+
+### Functional Dependency(함수적 종속성)
+
+만약 **attribute A가 attribute B의 determinant이면 B가 A에 `함수적으로 종속`한다**고 말한다. 달리 표현하면, 주어진 릴레이션 R에서 attribute B가 attribute A에 함수적으로 종속하는 필요 충분 조건은 각 A 값에 대해 반드시 한 개의 B 값이 대응된다는 것이다.
+
+### Full Functional Dependency(FFD, 완전 함수적 종속성)
+
+**주어진 릴레이션 R에서 attribute B가 attribute A에 함수적으로 종속하면서, attribute A의 어떠한 진부분 집합에도 함수적으로 종속하지 않으면 attribute B가 attribute A에 `완전하게 함수적으로 종속`한다**고 말한다. 여기서 attribute A는 composite attribute이다.
+
+### Transitive Functional Dependency(이행적 함수적 종속성)
+
+한 릴레이션의 attribute A, B, C가 주어졌을 때, **attribute C가 `이행적`으로 A에 종속하는(A → C) 필요 충분 조건은 [ A → B ∧ B → C ]가 성립하는 것**이다. A가 릴레이션의 Primary key라면 정의에 따라 A → B와 A → C가 성립한다. 만약 C가 A 외에 B에도 함수적으로 종속한다면 C는 A에 직접 함수적으로 종속하면서 B를 거쳐서 A에 이행적으로도 종속한다. 이행적 종속성이 존재하는 릴레이션에는 key가 아닌 attribute가 적어도 두 개 이상 있어야 한다.
+
+<br>
+
+## Decomposition(릴레이션 분해)
+
+**`Decomposition(릴레이션 분해)`는 하나의 릴레이션을 두 개 이상의 릴레이션으로 나누는 것**이다. 릴레이션을 분해하면 중복이 감소되고 이상 현상이 줄어드는 장점이 있다. 정규화의 목적은 데이터의 중복을 제거하고, 이상 현상을 제거하는 것이기에 정규화 과정에서 릴레이션의 분해는 필수적인 작업이 된다.  
+그러나 릴레이션을 분해하는 것은 이런 장점 외에도 몇 가지 문제들을 야기할 수 있다. 첫째, 릴레이션을 분해하면 JOIN이 필요 없는 query가 JOIN이 필요한 query로 바뀔 수 있다. 둘째, 분해된 릴레이션들을 사용하여 원래 릴레이션을 재구성하지 못할 수도 있다.  
+만약 릴레이션을 분해한 후, **분해된 릴레이션들을 JOIN하여 기존의 릴레이션에 들어 있는 정보를 완전하게 얻을 수 있다면 이러한 분해를 `Lossless Decomposition(무손실 분해)`라고 한다.** 여기서 **`정보의 손실`이란 분해 후 생성된 릴레이션들을 JOIN한 결과에 들어 있는 정보가 원래의 릴레이션에 들어 있는 정보보다 적거나 많은 것을 모두 포함**하는 개념이다.
+
+<br>
+
+## Normal Form(NF, 정규형)
+
+`Normal Form(정규형)`에는 제1정규형(1NF), 제2정규형(2NF), 제3정규형(3NF), BCNF, 제4정규형(4NF), 제5정규형(5NF) 등이 있으나, 일반적으로 DB를 설계할 때 3NF 또는 BCNF까지만 고려한다. 이 중 2NF부터 BCNF까지의 정규형은 함수적 종속성 이론에 기반을 둔다.
+
+### 제1정규형(1NF)
+
+**모든 속성의 도메인이 `원자 값(atomic value, 더 이상 분해할 수 없는 값)`만으로 구성되어 있다**면 `제1정규형(1NF)`을 만족한다.
+
+### 제2정규형(2NF)
+
+**제1정규형을 만족하면서, 어떤 `candidate key`에도 속하지 않는 모든 attribute들이 primary key에 완전하게 함수적으로 종속한다**면 `제2정규형(2NF)`을 만족한다. 즉, **2NF는 릴레이션 내에 존재하는 모든 `부분 함수적 종속`을 제거하여 `완전 함수적 종속`으로 만드는 단계**이다.
+
+### 제3정규형(3NF)
+
+**제2정규형을 만족하면서, key가 아닌 모든 attribute가 primary key에 이행적으로 종속하지 않는다**면 `제3정규형(3NF)`을 만족한다. 즉, **3NF는 `이행적 함수 종속`을 제거하는 단계**이다.
+
+### BCNF(Boyce-Codd Normal Form)
+
+**제3정규형을 만족하면서, `모든 결정자(Determinant)`가 `후보키(candidate key)`라면 `BCNF`를 만족**한다.
+
+<br>
+
+## Denormalization(비정규화, 반정규화, 역정규화)
+
+정규화는 단계가 진행될수록 중복이 감소하고 이상 현상도 줄어드는 장점이 있어 데이터베이스 설계의 중요한 요소이지만, 높은 수준의 정규형을 만족하는 것이 항상 최선인 것은 결코 아니다. 정규형의 단계가 한 단계 높아질수록 하나의 릴레이션이 적어도 두 개 이상의 릴레이션으로 분해되기 때문에 정규화 이전과 같은 정보를 얻기 위해서는 많은 JOIN 연산이 필요하게 된다. 즉, 높은 정규형을 만족할수록 릴레이션 스키마의 성능은 나빠질 수 있다.
+**`Denormalization`은 JOIN 연산이 빈번하게 발생하여 응답 시간이 느려지는 경우, query 수행 속도 향상을 위해 이미 분해된 두 개 이상의 릴레이션들을 하나의 릴레이션으로 합치는 작업**이다. 즉, 낮은 정규형으로 되돌아가는 것이다. 조회 성능이 중요한 작업의 경우는 이렇게 비정규화를 통해 성능상 요구사항을 만족하는 전략을 취할 수 있다.
