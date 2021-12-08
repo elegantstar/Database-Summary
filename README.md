@@ -254,3 +254,114 @@ Transaction은 데이터베이스 시스템에서 매우 중요한 개념으로,
 <br>
 
 ## Concurrency Control(동시성 제어)
+
+다수의 사용자가 동일한 데이터에 접근하여 트랜잭션을 수행하는 경우, 변경 중인 데이터를 다른 트랜잭션이 사용하게 되면 데이터의 일관성이 훼손될 수 있다. **`동시성 제어(Concurrency Control)` 기법은 다수의 사용자들의 트랜잭션들을 동시에 수행하는 환경에서 부정확한 결과를 생성할 수 있는, 트랜잭션들 간의 간섭이 생기지 않도록 제어하는 것**을 말한다.
+
+각 트랜잭션은 데이터베이스의 일관성을 유지하므로 여러 트랜잭션들의 집합을 한 번에 한 트랜잭션씩 차례대로 수행하는 `직렬 스케줄(Serial Schedule)`에서는 데이터베이스의 일관성이 유지된다. 여러 트랜잭션들을 동시에 수행하는 `비직렬 스케줄(Non-Serial Schedule)`의 결과가 어떤 직렬 스케줄의 수행 결과와 동등하다면 `직렬 가능(Serializable)`하다고 표현한다.
+
+만약 DBMS가 동시성 제어를 하지 않고 다수의 트랜잭션을 동시에 수행한다면 `Lost Update(갱신 손실)`, `Dirty Read`, `Unrepeatable Read` 등의 문제가 발생할 수 있다.
+
+#### Lost Update(갱신 손실)
+
+**`Lost update(갱신 손실)`은 수행 중인 트랜잭션이 갱신한 내용을 다른 트랜잭션이 덮어 씀으로써 갱신이 무효가 되는 것**을 말한다.
+
+#### Dirty Data
+
+**`Dirty Data`는 완료되지 않은 트랜잭션이 갱신한 데이터**이다. `Dirty Read`는 한 트랜잭션이 Dirty Data를 읽어들이는 것을 말한다.
+
+#### Unrepeatable Read
+
+**`Unrepeatable Read`는 한 트랜잭션이 동일한 데이터를 두 번 읽을 때 서로 다른 값을 읽는 것**을 말한다.
+
+<br>
+
+### 데이터베이스 연산
+
+사용자 프로그램에서는 데이터베이스로부터 검색한 데잍터에 대해 여러 가지 연산을 수행할 수 있지만, DBMS는 `읽기(read)`와 `쓰기(write)` 연산에만 관심을 갖는다.
+
+#### Input(X) / Output(X)
+
+데이터베이스 항목을 포함하고 있는 디스크 블록을 주기억 장치와 디스크 간에 이동하는 연산은 `Input(X)`와 `Output(X)`이다. Input(X) 연산은 데이터베이스 항목 X를 포함하고 있는 블록을 주기억 장치의 `버퍼(Buffer)`로 읽어들인다. Output(X) 연산은 데이터베이스 항목 X를 포함하고 있는 블록을 디스크에 기록한다.
+
+#### read_item(X) / write_item(X)
+
+주기억 장치의 버퍼와 응용 프로그램 간에 데이터베이스 항목을 이동하는 연산은 `read_item(X)`와 `write_item(X)`이다. read_item(X) 연산은 주기억 장치 버퍼에서 데이터베이스 항목 X의 값을 프로그램 변수 X로 복사한다. write_item(X) 연산은 프로그램 변수 X의 값을 주기억 장치 내의 데이터베이스 항목 X에 기록한다. read_item(X)와 write_item(X)에 Input(X) 연산이 모두 필요하다.
+
+<br>
+
+## Locking
+
+`Locking`은 동시에 수행되는 트랜잭션들의 동시성을 제어하기 위해 가장 널리 사용되는 기법으로, **한 트랜잭션에서 사용 중인 데이터베이스 내 데이터 항목에 대해 다른 트랜잭션의 접근을 제한하는 것**을 말한다. 일반적으로 데이터베이스 내의 모든 데이터 항목마다 Lock이 존재하며, 각 트랜잭션이 데이터 항목에 접근할 때마다 요청한 Lock에 관한 정보는 `Lock Table` 등에 유지된다.
+
+트랜잭션에서 갱신을 목적으로 데이터 항목에 접근할 때는 `독점 로크(X-lock, eXclusive lock)`를 요청한다. 반면에 트랜잭션에서 읽기만 할 목적으로 데이터 항목에 접근할 때는 `공유 로크(S-lock, Shared lock)`을 요청한다. 한 트랜잭션에서 어떤 데이터에 Shared Lock을 걸어 놓은 경우에, 또 다른 트랜잭션이 그 데이터 항목을 읽으려고 Shared Lock을 요청한다면 이를 함께 허용해도 무방하다. 그러나 Shared Lock이 걸려 있는 데이터 항목에 대해 X-Lock을 요청하거나, X-Lock이 걸려 있는 데이터 항목에 대해 X-Lock이나 Shared Lock을 요청하는 경우에는 이를 허용해서는 안 된다. Lock은 트랜잭션이 데이터 항목에 대한 접근을 끝낸 후에 `해제(Unlock)`한다.
+
+### Lock 양립성 행렬
+
+|                    |  현재 lock ->  | Shared Lock | eXclusive Lock | No Locking |
+| :----------------: | :------------: | :---------: | :------------: | :--------: |
+| **요청 중인 Lock** |  Shared Lock   |    허용     |      대기      |    허용    |
+| **요청 중인 Lock** | eXclusive Lock |    대기     |      대기      |    허용    |
+
+<br>
+
+### Two-Phase Locking Protocol(2PL, 2단계 라킹 프로토콜)
+
+**`Two-Phase Locking Protocol`은 트랜잭션이 진행되는 동안 Lock과 Unlock 연산을 `Growing Phase(확장 단계)`와 `Shrinking Phase(축소 단계)`로 구분하여 수행하는 기법**을 말한다.
+
+#### Growing Phase(확장 단계)
+
+`Growing Phase`에서는 트랜잭션이 데이터 항목에 대해 새로운 Lock을 요청할 수 있지만 Unlock 연산은 수행할 수 없다. 즉, **Lock 연산만 수행이 가능**하다.
+
+#### Shrinking Phase(축소 단계)
+
+`Shrinking Phase`에서는 Unlock 연산은 수행할 수 있지만 새로운 Lock을 요청할 수는 없다. 즉, **Unlock 연산만 수행 가능**하다. Shrinking Phase에서는 Unlock을 조금씩 수행할 수도 있고, 한꺼번에 수행할 수도 있는데 일반적으로 한꺼번에 Lock을 해제하는 방식이 사용된다.
+
+#### Lock Point
+
+**`Lock Point`는 한 트랜잭션에서 필요로 하는 모든 Lock을 걸어놓은 시점**을 말한다. 따라서 Lock Point를 전후로 하여 Growing Phase와 Shrinking Phase로 나뉜다.
+
+<br>
+
+이러한 특성 때문에 2PL을 따른다면 트랜잭션이 진행되는 도중 단 한 번의 Unlock이라도 수행하게 되면 Shrinking Phase로 들어가고, Lock 연산을 수행할 수 없다. 이렇게 Lock과 Unlock 연산을 분리하여 진행하는 이유는 `Consistency`가 위배되는 상황을 방지하기 위해서이다. Loking을 사용하더라도 동시성 제어 문제가 완벽하게 해결되지는 않기 때문에 2PL 기법으로 동시성 제어를 하여 DB의 Consistency를 보장한다. 아래는 2PL을 따르지 않고 두 개의 프로토콜을 진행했을 때 일관성이 위배되는 상황에 대한 예시이다.
+
+> T1과 T2는 각각 하나의 트랜지션이다. T1에서는 데이터 항목 A와 B에 각각 3을 더한다. 트랜잭션이 수행되기 전에 A = B를 만족하고 있었다면 수행 후에도 A = B를 만족해야 한다. T2는 데이터 항목 A와 B에 각각 3을 곱한다. 마찬가지로 트랜잭션 수행 전에 A = B를 만족하고 있었다면 수행 후에도 A = B를 만족해야 한다. 따라서 T1과 T2는 어느 것을 먼저 수행하든 최종 결과는 A = B를 만족해야 한다. 그러나 아래 스케줄에 따라 두 트랜잭션을 수행하면 동시성 제어를 위해 Locking을 사용했더라도 A ≠ B가 된다. 그 이유는 Unlock을 너무 일찍 수행했기 때문이다.
+
+| T1                                                                                                                                              | T2                                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <span style="color:red">X-lock(A);</span> <br> read_item(A); <br> A = A + 3; <br> write_item(A); <br> <span style="color:red">unlock(A);</span> |                                                                                                                                                                                                                                                                                                         |
+|                                                                                                                                                 | <span style="color:red">X-lock(A);</span> <br> read\*item(A); <br> A = A \* 3; <br> write_item(A); <br> <span style="color:red">unlock(A);</span> <br> <span style="color:red">X-lock(B);</span> <br> read_item(B); <br> B = B \* 3; <br> write_item(B); <br> <span style="color:red">unlock(B);</span> |
+| <span style="color:red">X-lock(B);</span> <br> read_item(B); <br> B = B+3; <br> write_item(B); <br> <span style="color:red">unlock(B)</span>;   |                                                                                                                                                                                                                                                                                                         |
+
+<br>
+
+### Deadlock(교착 상태)
+
+**`Deadlock(교착 상태)`은 두 개 이상의 트랜잭션들이 서로 상대방이 보유하고 있는 Lock을 요청하면서 기다리고 있는 상태**를 말한다. 이런 경우 각 트랜잭션은 2PL의 Growing Phase에 있으므로 Unlock을 수행할 수 없어 서로 필요로 하는 데이터 항목에 대한 Lock을 점유한 채로 무한 대기 상태에 빠지게 된다. 일반적인 DBMS는 Deadlock을 독자적으로 검출하여 보고한다. 아래는 Deadlock에 대한 간단한 상황 예시이다.
+
+> T1과 T2는 데이터 항목 A와 B에 대해 각각 Lock을 요청해 가는 과정에서 Deadlock이 발생하는 경우를 생각해 볼 수 있다. (2PL의 예시에서 사용했던 상황을 대입해도 무방)
+> ① T1이 A에 대해 X-Lock을 요청하여 허가 받음.
+> ② T2가 B에 대해 X-Lock을 요청하여 허가 받음.
+> ③ T1이 B에 대해 S-Lock이나 X-Lock을 요청하면 T2에서 Unlock을 수행할 때까지 대기하게 됨.
+> ④ T2가 A에 대해 S-Lock이나 X-Lock을 요청하면 T1에서 Unlock을 수행할 때까지 대기하게 됨.
+
+#### Deadlock 빈도를 낮추는 방법
+
+- Transaction을 자주 commit 한다.
+- 정해진 순서로 테이블에 접근한다. 위의 예시에서 T1은 A → B 순으로 접근했고, T2는 B → A 순으로 접근하여 문제가 발생하였으므로, 트랜잭션들이 데이터 항목에 접근할 때 동일한 순서로 접근하도록 한다.
+- Shared Lock 사용을 피한다.
+- 다수의 트랜잭션이 동일한 테이블 내의 여러 tuple들을 갱신하는 경우 Deadlock이 발생하기 쉽다. 이런 경우 테이블 단위의 Lock을 요청하여 작업을 직렬화 하면 동시성은 떨어지지만 Deadlock은 피할 수 있다. (`Multiple Granularity`)
+
+<br>
+
+### Multiple Granularity(다중 Lock 단위)
+
+트랜잭션들이 많은 tuple에 접근하는 경우에 tuple 단위로만 Lock을 걸면 Lock Table에서 Lock 충돌을 검사하고, Lock 정보를 기록하는 시간이 오래 걸린다. 따라서 트랜잭션이 접근하는 tupel 수에 따라 Lock 하는 데이터 항목의 단위를 구분하는 것이 필요하다.  
+**한 트랜잭션에서 Lock 할 수 있는 데이터 항목이 두 가지 이상 있으면 이를 `Multiple Granularity(다중 Lock 단위)`라고 한다.** 데이터베이스에서 Lock 할 수 있는 단위로는 `데이터베이스`, `릴레이션`, `디스크 블록`, `튜플` 등이 있다. 일반적으로 DBMS는 각 트랜잭션에서 접근하는 tuple 수에 따라 자동적으로 Lock 단위를 조정한다. Lock 단위는 작을수록 Locking에 따른 오버헤드가 증가하지만, 동시성의 정도는 증가한다.
+
+### Phantom Problem
+
+**한 트랜잭션에서 같은 query를 두 번 수행할 때, 그 사이에 다른 트랜잭션에서 새로운 데이터를 삽입(insert)하는 경우 동일한 query임에도 상이한 결과가 나타나게 되는데 이러한 현상을 `Phantom Problem` 또는 `Phantom Read`라고 한다.** 각각의 트랜잭션이 tuple 단위로 Lock을 걸어 연산을 수행하는 경우, 새로 추가되는 tuple에 대해서는 Lock이 걸려있지 않기 때문에 이러한 현상이 발생하게 되는 것이다.
+
+<br>
+
+## Recovery(회복)
