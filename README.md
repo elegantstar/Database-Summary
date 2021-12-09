@@ -365,3 +365,103 @@ Transaction은 데이터베이스 시스템에서 매우 중요한 개념으로,
 <br>
 
 ## Recovery(회복)
+
+어떤 트랜잭션을 수행하는 도중에 시스템이 다운된다면 트랜잭션 내 연산의 결과가 일부만 데이터베이스에 반영될 수 있다. 이럴 경우 이 트랜잭션의 수행 결과를 취소하여 Atomicity를 보장해야 한다. 또한, 트랜잭션이 종료된 직후에 시스템이 다운되는 경우에는 그 수행 결과를 주기억 장치로부터 데이터베이스에 기록하지 못할 수도 있다. 이런 경우 Durability를 보장하기 위해서는 추후 그 수행 결과를 완전하게 데이터베이스에 반영할 수 있어야 한다.  
+**DBMS의 `Recovery Module`은 트랜잭션 수행 과정에서 비정상적으로 중단되는 상황이 발생했을 때 트랜잭션의 Atomicity와 Durability를 보장하는 기능**을 말한다.
+
+트랜잭션이 버퍼에는 갱신 사항을 반영했으나 버퍼의 내용을 디스크에 기록하기 전에 고장이 발생했다면 트랜잭션이 완료 명령을 수행한 경우와 그렇지 못한 경우 두 가지 상황으로 나눌 수 있다. 트랜잭션이 완료 명령을 수행했다면 DBMS의 회복 모듈은 이 트랜잭션의 갱신 사항을 `REDO`하여 트랜잭션의 갱신이 `Durability`을 갖도록 해야 한다. 그러나 완료 명령을 수행하지 못했다면 `Atomicity`을 보장하기 위해서 이 트랜잭션이 데이터베이스에 반영했을 가능성이 있는 갱신 사항을 `UNDO`해야 한다.
+
+DBMS는 데이터베이스의 회복을 위해 `Backup`, `Logging`, `Checkpoint` 등을 수행한다. `Backup`은 데이터베이스를 주기적으로 자기 테이프 등에 복사하는 것이다. `Logging`은 현재 수행 중인 트랜잭션의 상태와 데이터베이스의 갱신 사항을 기록하며, `Checkpoint`는 시스템이 붕괴된 후 재기동되었을 때 재수행하거나 취소해야 하는 트랜잭션들의 수를 줄여준다.
+
+<br>
+
+### Log를 사용한 즉시 갱신
+
+거의 모든 데이터베이스는 `Log`를 기반으로 한 즉시 갱신 방법을 사용한다. DBMS는 고장 상황 발생 시, 트랜잭션의 Atomicity와 Durability를 보장하기 위해 Log라는 추가적인 정보를 유지한다. **`Log`는 데이터 갱신 내용을 시간에 따라 기록한 것**이다. 따라서 Log를 이용하면 고장 상황 이후 DB에서 완료된 트랜잭션의 수행 결과를 취소하거나, 철회된 트랜잭션의 수행 결과를 DB에 반영할 수 있다.
+
+Log는 DB와의 동시 손상을 피하기 위해 일반적으로 전용 디스크에 저장되며, DB 항목에 영향을 미치는 모든 트랜잭션의 연산들에 대해서 `Log record`를 기록한다. 각 Log record는 `Log Sequence Number(LSN, 로그 순서 번호)`로 식별된다.
+
+각 Log record가 어떤 트랜잭션에 속한 것인지 식별하기 위해서 각 Log record마다 트랜잭션 ID를 포함시킨다. 트랜잭션이 생성될 때마다 고유한 번호가 부여되는데 이를 트랜잭션 ID라고 한다. 동일한 트랜잭션에 속하는 Log record들은 Linked List로 유지되며, Log와 관련된 모든 작업은 사용자에게 투명하게 DBMS에서 이루어진다.
+
+#### 흔히 사용되는 로그 레코드 유형
+
+- [Trans-ID, start] : **한 트랜잭션이 생설될 때 기록**되는 로그 레코드
+- [Trans-ID, X, old_value, new_value] : **주어진 Trans-ID를 갖는 트랜잭션이 데이터 항목 X를 이전 값(old_value)에서 새 값(new_value)으로 수정했음**을 나타내는 로그 레코드. 이전 값은 트랜잭션을 UNDO할 때 사용하고, 새 값은 트랜잭션을 REDO할 때 사용한다.
+- [Trans-ID, commit] : **주어진 Trans-ID를 갖는 트랜잭션이 데이터베이스에 대한 갱신을 모두 성공적으로 완료하였음**을 나타내는 로그 레코드. 어떤 트랜잭션에 대해 디스크 로그에 이런 로그 레코드가 기록되어 있으면 그 트랜잭션의 갱신 사항은 데이터베이스에 영구적으로 반영될 수 있다.
+- [Trans-ID, abort] : **주어진 Trans-ID를 갖는 트랜잭션이 철회되었음**을 나타내는 로그 레코드. 어떤 트랜잭션에 대해 디스크 로그에 이런 로그 레코드가 기록되어 있으면 그 트랜잭션의 갱신 사항을 데이터베이스에서 취소해야 한다.
+
+한 트랜잭션의 DB 갱신 연산이 모두 끝나고 DB 갱신 사항이 로그에 기록되었을 때 그 트랜잭션이 `Commit point(완료점)`에 도달한다고 말한다. DBMS의 Recovery Module은 로그를 검사하여 로그에 [Trans-ID, start] 로그 레코드와 [Trans-ID, commit] 로그 레코드가 모두 존재하는 트랜잭션들은 재수행(REDO)한다. 반면에 [Trans-ID, start] 로그 레코드는 존재하나 [Trans-ID, commit] 로그 레코드는 존재하지 않는 트랜잭션들은 모두 취소(UNDO)한다. 트랜잭션의 재수행은 로그가 기록되는 방향으로 진행되고, 트랜잭션의 취소는 로그를 역방향으로 따라가면서 진행된다.
+
+<br>
+
+### Write-Ahead Logging(WAL, 로그 먼저 쓰기)
+
+트랜잭션이 DB를 갱신하면 주기억 장치의 DB 버퍼에 갱신 사항을 기록하고, 로그 버퍼에는 이에 대응되는 로그 레코드를 기록한다. 그리고 이 두 버퍼를 모두 디스크에 기록해야 하는데 이 둘을 동시에 기록할 수는 없기 때문에 로그 버퍼를 먼저 기록한다. 이처럼 **데이터베이스 버퍼보다 로그 버퍼를 먼저 디스크에 기록하는 것을 `Write-Ahead Logging`이라고 한다.** 어떤 트랜잭션을 취소하려면 그 트랜잭션이 갱신한 데이터베이스 항목의 이전 값을 알아야 한다. 그런데 DB 갱신 사항을 먼저 기록하고 이후 로그 레코드가 디스크에 기록되기 전에 시스템이 다운되었다면, 로그 레코드가 없어 이전 값을 알 수 없으므로 트랜잭션 취소가 불가능해진다. 따라서 데이터베이스 버퍼보다 로그 버퍼를 디스크에 먼저 기록해야 한다.
+
+### Checkpoint
+
+DBMS가 로그를 사용하더라도 어떤 트랜잭션의 갱신 사항이 주기억 장치 버퍼로부터 디스크에 기록되었는가를 구분할 수는 없다. 즉, 추가 정보 없이 로그 검사만으로는 주기억 장치의 버퍼가 디스크에 기록되었는가를 식별할 수 없다. 따라서 DBMS는 회복 시 재수행할 트랜잭션의 수를 줄이기 위해서 주기적으로 `Checkpoint`를 수행한다. **Checkpoint 시점에는 주기억 장치의 버퍼 내용이 디스크에 강제로 기록되므로, Checkpoint를 수행하면 디스크 상에서 로그와 DB의 내용이 일치하게 된다. 이를 식별하기 위해 Checkpoint 작업이 끝나면 로그에 [checkpoint] 로그 레코드를 기록한다.**
+
+따라서 시스템 다운 후 재기동되었을 때 DBMS Recovery module은 [checkpoint] 로그 레코드를 찾는다. [checkpoint] 이전에 시작되었더라도 완료되지 않은 트랜잭션들은 모두 취소해야 하지만, [checkpoint] 로그 레코드 이전에 완료된 트랜잭션들은 재수행할 필요가 없다. [checkpoint] 이후에 완료된 모든 트랜잭션들은 재수행한다. Checkpoint는 적절한 시간 간격을 두고 수행된다.
+
+#### Checkpoint 시 수행되는 작업
+
+1. 수행 중인 트랜잭션을 일시적으로 중지. (이 작업은 회복 알고리즘에 따라 필요하지 않을 수 있음)
+2. 주기억 장치의 로그 버퍼를 디스크에 강제로 출력.
+3. 주기억 장치의 데이터베이스 버퍼를 디스크에 강제로 출력.
+4. [checkpoint] 로그 레코드를 로그 버퍼에 기록한 후 디스크에 강제로 출력. Checkpoint 시점에 수행 중이던 트랜잭션들의 ID도 [checkpoint] 로그 레코드에 함께 기록.
+5. 일시적으로 중지된 트랜잭션 수행 재개.
+
+<br>
+
+### Isolation Level(고립 수준)
+
+2PL을 엄격하게 적용할 때 생성되는 Serializable한 스케줄은 한 트랜잭션씩 차례대로 수행한 결과와 동등하지만, 동시성은 떨어지기 때문에 성능 저하를 유발할 수 있다. `Isolation Level`은 한 트랜잭션이 다른 트랜잭션과 고립되어야 하는 정도를 나타낸다. Isolation level이 낮으면 동시성은 높아지지만 데이터의 정확성은 떨어지고, 반대로 Isolation level이 높으면 데이터의 정확성은 높아지지만 동시성이 저하된다. 그러므로 프로그램의 성격에 따라 허용 가능한 Isolation level(DB의 정확성)을 선택함으로써 성능을 향상시킬 수 있다. DBMS가 사용하는 Locking 동작은 Isolation level에 따라 달라진다.
+
+**1. READ UNCOMMITTED (Level 0)**
+
+트랜잭션 내의 query들이 S-Lock을 걸지 않고 데이터를 읽는 가장 낮은 isolation level. 다른 트랜잭션의 갱신 내용이 Commit이든 Rollback이든 관계 없이 보여지기 때문에 Dirty Read를 유발한다. 갱신하려는 데이터에 대해서는 X-Lock을 걸고, 트랜잭션이 끝날 때까지 보유한다.
+
+```SQL
+    SET TRANSACTION READ WRITE
+        ISOLATION LEVEL READ UNCOMMITTED;
+```
+
+**2. READ COMMITTED (Level 1)**
+
+트랜잭션 내 query들이 읽으려는 데이터에 대해 S-Lock을 걸고, 읽기가 끝나마자마 Unlock한다. 따라서 동일한 데이터를 다시 읽을 경우, 이전에 읽은 값과 다른 값을 읽는 경우가 발생할 수 있다. (`Repeatable Read`에서 Consistency가 보장되지 않음) READ COMMITTED에서는 Commit이 수행된 데이터에만 접근이 가능하고 Commit이 되지 않은 데이터에는 UNDO 영역에 백업된 데이터를 참조하기 때문에 Dirty Read는 발생하지 않는다. 갱신하려는 데이터에 대해서는 X-Lock을 걸고 트랜잭션이 끝날 때까지 보유한다. READ COMMITTED는 RDB에서 가장 많이 사용하는 `Defaul Isolation Level`이다.
+
+```SQL
+    SET TRANSACTION READ WRITE
+        ISOLATION LEVEL READ COMMITTED;
+```
+
+**3. REPEATABLE READ (Level 2)**
+
+트랜잭션 내 query에서 검색하는 모든 데이터들에 대해 S-Lock을 걸고 트랜잭션이 끝날 때까지 보유한다. 한 트랜잭션 내에서 동일한 query를 두 번 이상 수행할 때에는 매번 같은 값을 포함한 결과를 검색하게 된다. 갱신하려는 데이터에 대해서는 X-Lock을 걸고 트랜잭션이 끝날 때까지 보유한다.
+
+```SQL
+    SET TRANSACTION READ WRITE
+        ISOLATION LEVEL REPEATABLE READ;
+```
+
+**4. SERIALIZABLE (Level 3)**
+
+query에서 검색되는 tuple들 뿐만 아니라 인덱스에 대해서도 S-Lock을 걸고 트랜잭션이 끝날 때까지 보유하는 가장 높은 isolation level. 인덱스에 S-lock을 걸어두기 때문에 Phantom problem도 방지한다. 갱신하려는 데이터에 대해서는 X-Lock을 걸고 트랜잭션이 끝날 때까지 보유한다. 일반적으로 데이터베이스에서는 사용하지 않는다.
+
+```SQL
+    SET TRANSACTION READ WRITE
+        ISOLATION LEVEL SERIALIZABLE;
+```
+
+#### 고립 수준에 따른 동시성 문제
+
+| Isolation Level  | Dirty Read | Unrepeatable Read | Phantom Read |
+| :--------------: | :--------: | :---------------: | :----------: |
+| READ UNCOMMITTED |     Y      |         Y         |      Y       |
+|  READ COMMITTED  |     N      |         Y         |      Y       |
+| REPEATABLE READ  |     N      |         N         |      Y       |
+|   SERIALIZABLE   |     N      |         N         |      N       |
+
+<br>
+<hr>
