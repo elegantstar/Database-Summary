@@ -416,7 +416,7 @@ DBMS가 로그를 사용하더라도 어떤 트랜잭션의 갱신 사항이 주
 
 ### Isolation Level(고립 수준)
 
-2PL을 엄격하게 적용할 때 생성되는 Serializable한 스케줄은 한 트랜잭션씩 차례대로 수행한 결과와 동등하지만, 동시성은 떨어지기 때문에 성능 저하를 유발할 수 있다. `Isolation Level`은 한 트랜잭션이 다른 트랜잭션과 고립되어야 하는 정도를 나타낸다. Isolation level이 낮으면 동시성은 높아지지만 데이터의 정확성은 떨어지고, 반대로 Isolation level이 높으면 데이터의 정확성은 높아지지만 동시성이 저하된다. 그러므로 프로그램의 성격에 따라 허용 가능한 Isolation level(DB의 정확성)을 선택함으로써 성능을 향상시킬 수 있다. DBMS가 사용하는 Locking 동작은 Isolation level에 따라 달라진다.
+2PL을 엄격하게 적용할 때 생성되는 Serializable한 스케줄은 한 트랜잭션씩 차례대로 수행한 결과와 동등하지만, 동시성은 떨어지기 때문에 성능 저하를 유발할 수 있다. **`Isolation Level`은 한 트랜잭션이 다른 트랜잭션과 고립되어야 하는 정도**를 나타낸다. Isolation level이 낮으면 동시성은 높아지지만 데이터의 정확성은 떨어지고, 반대로 Isolation level이 높으면 데이터의 정확성은 높아지지만 동시성이 저하된다. 그러므로 프로그램의 성격에 따라 허용 가능한 Isolation level(DB의 정확성)을 선택함으로써 성능을 향상시킬 수 있다. DBMS가 사용하는 Locking 동작은 Isolation level에 따라 달라진다.
 
 **1. READ UNCOMMITTED (Level 0)**
 
@@ -456,12 +456,42 @@ query에서 검색되는 tuple들 뿐만 아니라 인덱스에 대해서도 S-L
 
 #### 고립 수준에 따른 동시성 문제
 
-| Isolation Level  | Dirty Read | Unrepeatable Read | Phantom Read |
-| :--------------: | :--------: | :---------------: | :----------: |
-| READ UNCOMMITTED |     Y      |         Y         |      Y       |
-|  READ COMMITTED  |     N      |         Y         |      Y       |
-| REPEATABLE READ  |     N      |         N         |      Y       |
-|   SERIALIZABLE   |     N      |         N         |      N       |
+| Isolation Level  | Dirty Read | Unrepeatable Read | Phantom Read  |
+| :--------------: | :--------: | :---------------: | :-----------: |
+| READ UNCOMMITTED |     Y      |         Y         |       Y       |
+|  READ COMMITTED  |     N      |         Y         |       Y       |
+| REPEATABLE READ  |     N      |         N         | Y(not InnoDB) |
+|   SERIALIZABLE   |     N      |         N         |       N       |
 
 <br>
 <hr>
+
+### MVCC (Multi-Version Concurrency Control)
+
+데이터베이스에서 데이터의 버전을 저장하여 동시성을 제어하는 방식을 말한다. MySQL의 InnoDB는 이러한 MVCC 패턴을 사용한다. 데이터의 변경이 일어나면 해당 데이터를 변경한 TRX-ID를 함께 저장하고, 기존 데이터는 UNDO 영역에 저장한다. 어떤 트랜잭션이 데이터에 접근할 때, 해당 트랜잭션의 ID보다 이전 ID가 변경한 데이터 중 가장 최신 데이터를 읽어 오고, 처음 읽어온 데이터의 Snapshot을 생성하여 이후의 읽기에 대해서는 snapshot의 데이터를 활용한다. 데이터의 변경은 snapshot 데이터를 이용하여 수행하고 commit 시 새로운 버전의 데이터를 반영한다.  
+Lock을 이용하지 않고 동시성을 제어하는 방법이기 때문에 성능면에서 우수하지만, 동시에 수정되는 빈도가 높은 경우 버전 충돌이 발생할 수 있다.
+
+#### Isolation Level in MVCC
+
+Lock을 사용하여 동시성을 제어하는 경우는 앞서 작성한 Isolation Level의 내용처럼 동작하지만, MVCC 패턴을 사용하는 경우 Isolation Level의 동작 방식이 다르다. MVCC의 Isolation Level은 다음과 같다.
+
+**1. Read Uncommitted**
+
+Commit 하지 않은 데이터에 접근이 가능하다.  
+A 트랜잭션이 변경하였으나 아직 commit 하지 않은 데이터를 B 트랜잭션이 읽어와 작업을 처리하는 도중 A 트랜잭션의 Rollback이 발생하더라도 B 트랜잭션은 그대로 작업을 수행한다. -> `Dirty Read` 발생
+
+**2. Read Committed**
+
+한 트랜잭션이 데이터를 갱신하면 갱신된 데이터는 테이블에 반영되지만, 이전 데이터가 Undo 영역에 백업된다. 따라서 변경된 데이터가 Commit 되기 전에는 해당 데이터 항목은 Undo 영역에서 조회된다. 하지만 한 트랜잭션이 동일한 데이터를 두 번 조회할 때, 첫 번째 조회 시에는 Undo 영역에서 조회하고 두 번째 조회 시에는 테이블에서 조회할 경우 두 데이터의 값이 다를 수 있다. -> `Unrepeatable Read` 발생
+
+**3. Repeatable Read**
+
+InnoDB 엔진에서 사용하는 Default Isolation Level이다. Repeatable Read를 보장하기 위해 Consistent Read 방식을 사용하고, 명시적 Locking Read를 위한 `SELECT ... FOR SHARE`, `SELECT ... FOR UPDATE` 구문을 제공한다.
+
+트랜잭션이 데이터 항목에 접근하여 갱신하는 경우 Transaction-ID가 함께 저장된다. 갱신된 데이터에 Transaction-ID를 유지하기 때문에 어떤 트랜잭션이 데이터 항목에 접근할 때는 자신의 TRX-ID보다 이전의 ID로 변경된 결과 중 가장 최신 데이터에 접근한다. commit 되지 않은 데이터의 경우, 기존 값을 Undo 영역에 저장하는데, 동일한 데이터 항목에 대한 Undo 데이터가 여러 개 존재할 수 있다.
+
+※ `Consistent Read` : 트랜잭션 내부에서 non-locking read(기본 SELECT 구문) 실행할 때, 동시에 실행중인 다른 트랜잭션에서 데이터를 변경하더라도 특정 시점의 스냅샷(snapshot)을 이용하여 기존과 동일한 결과를 리턴할 수 있도록 해주는 기능을 말한다. 트랜잭션 시작 후 첫 번째 read operation이 수행되는 시점의 데이터로 `snapshot`을 생성한다. 이후 동일한 read operation에 대해서는 snapshot 데이터를 이용하기 때문에 `repeatable read`를 보장할 수 있다. 그리고 InnoDB는 Repeatable Read Level에서 Consistent Read를 사용하고 있기 때문에 `Phantom Read`도 발생하지 않는다.
+
+**4. Serializable**
+
+가장 엄격한 격리 수준으로 읽기 작업에 대해서도 S-Lock을 획득해야 하며, 다른 트랜잭션에서는 해당 레코드를 변경할 수 없다.
